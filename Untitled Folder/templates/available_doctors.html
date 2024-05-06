@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Available Doctors</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Available Doctors</h2>
+        <ul class="list-group">
+            {% for doctor in doctors %}
+            <li class="list-group-item">
+                <span>{{ doctor.username }}</span> -
+                <span>{{ doctor.specialization }}</span>
+                <form action="/book_appointment" method="post" style="display: inline;">
+                    <input type="hidden" name="doctor_id" value="{{ doctor.doctor_id }}">
+                    <input type="hidden" name="patient_id" value="{{ current_user_id }}">
+                    <div class="form-row">
+                        <div class="col">
+                            <input type="datetime-local" class="form-control" name="appointment_date" placeholder="Appointment Date" required>
+                        </div>
+                        <div class="col">
+                            <button type="submit" class="btn btn-primary">Book Appointment</button>
+                        </div>
+                    </div>
+                </form>
+                <form action="/delete_user/{{ doctor.user_id }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger btn-sm float-right">Delete</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+
+</html>

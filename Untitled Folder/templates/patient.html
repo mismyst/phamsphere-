@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Patient Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        .doctor-list, .medicine-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .doctor-item, .medicine-item {
+            margin-bottom: 10px;
+        }
+        .appointment-btn, .order-btn {
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Patient Dashboard</a>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#" onclick="showContent('doctors')">Available Doctors</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showContent('appointments')">Appointments</a>
+                </li>
+                <!-- New menu item for ordering medicine -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="showContent('order'); fetchAvailableMedicines();">Order Medicine</a>
+                </li>
+            </ul>
+            <span class="navbar-text mr-3">
+                User ID: {{ current_user_id }}
+            </span>
+            <form action="/logout" method="post">
+                <button type="submit" class="btn btn-outline-secondary">Logout</button>
+            </form>
+        </div>
+    </nav>
+    <div class="container" id="doctors" style="display: none;">
+        <h2>Available Doctors</h2>
+        <ul class="doctor-list">
+            <!-- Doctors will be dynamically added here -->
+        </ul>
+        <form id="appointmentForm" action="/book_appointment" method="post">
+            <input type="hidden" id="doctor_id" name="doctor_id">
+            <input type="hidden" id="patient_id" name="patient_id" value="{{ current_user_id }}">
+            <input type="hidden" id="appointment_date" name="appointment_date">
+        </form>
+    </div>
+    <div class="container" id="appointments" style="display: none;">
+        <h2>Your Appointments</h2>
+        <ul id="appointment-list"></ul>
+    </div>
+
+    <!-- Patient Information Form -->
+    <div class="container patient-info">
+        <h2>Your Information</h2>
+        <form action="/submit_patient_info" method="post">
+            <div class="form-group">
+                <label for="name">Name:</label>
+                <input type="text" class="form-control" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="age">Age:</label>
+                <input type="number" class="form-control" id="age" name="age" required>
+            </div>
+            <div class="form-group">
+                <label for="blood_pressure">Blood Pressure:</label>
+                <input type="text" class="form-control" id="blood_pressure" name="blood_pressure" required>
+            </div>
+            <div class="form-group">
+                <label for="weight">Weight:</label>
+                <input type="number" class="form-control" id="weight" name="weight" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label for="height">Height:</label>
+                <input type="number" class="form-control" id="height" name="height" step="0.01" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+    </div>
+    <div class="container" id="order" style="display: none;">
+        <h2>Order Medicine</h2>
+        <div id="medicine-list"></div>
+        <form id="orderForm">
+            <div class="form-group">
+                <label for="medicine">Medicine Name:</label>
+                <input type="text" class="form-control" id="medicine" name="medicine" required>
+            </div>
+            <div class="form-group">
+                <label for="quantity">Quantity:</label>
+                <input type="number" class="form-control" id="quantity" name="quantity" required>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="placeOrder()">Place Order</button>
+        </form>
+    </div>
+
+    <script>
+        // Function to show content based on the selected tab
+        function showContent(contentId) {
+            if (contentId === 'doctors') {
+                document.getElementById('doctors').style.display = 'block';
+                document.getElementById('appointments').style.display = 'none';
+                document.getElementById('order').style.display = 'none'; // Hide order section
+                fetchAvailableDoctors(); // Fetch available doctors from the server
+            } else if (contentId === 'appointments') {
+                document.getElementById('doctors').style.display = 'none';
+                document.getElementById('appointments').style.display = 'block';
+                document.getElementById('order').style.display = 'none'; // Hide order section
+                fetchPatientAppointments(); // Fetch patient's appointments from the server
+            } else if (contentId === 'order') {
+                const orderSection = document.getElementById('order');
+                if (orderSection.style.display !== 'block') {
+                    document.getElementById('doctors').style.display = 'none';
+                    document.getElementById('appointments').style.display = 'none';
+                    document.getElementById('order').style.display = 'block'; // Show order section
+                    fetchAvailableMedicines(); // Fetch available medicines from the server
+                }
+            }
+        }
+
+        // Fetch and display patient's appointments
+        function fetchPatientAppointments() {
+            fetch('/get_patient_appointments')
+                .then(response => response.json())
+                .then(appointments => {
+                    const appointmentList = document.getElementById('appointment-list');
+                    appointmentList.innerHTML = ''; // Clear previous list
+                    appointments.forEach(appointment => {
+                        const listItem = document.createElement('li');
+                        listItem.textContent = `Appointment ID: ${appointment.appointment_id}, Doctor ID: ${appointment.doctor_id}, Date: ${appointment.appointment_date}, Status: ${appointment.status}`;
+                        if (appointment.status !== 'canceled') {
+                            const cancelButton = document.createElement('button');
+                            cancelButton.textContent = 'Cancel';
+                            cancelButton.addEventListener('click', () => cancelAppointment(appointment.appointment_id));
+                            listItem.appendChild(cancelButton);
+                        }
+                        appointmentList.appendChild(listItem);
+                    });
+                });
+        }
+
+        // Function to cancel an appointment
+        function cancelAppointment(appointmentId) {
+            fetch(`/cancel_appointment/${appointmentId}`, { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        // Remove the canceled appointment from the list
+                        document.getElementById(`appointment-${appointmentId}`).remove();
+                    } else {
+                        console.error('Failed to cancel appointment:', response.statusText);
+                    }
+                })
+                .catch(error => console.error('Error canceling appointment:', error));
+        }
+
+        // Fetch available doctors from the server and update the doctor list
+        function fetchAvailableDoctors() {
+            fetch('/get_available_doctors')
+                .then(response => response.json())
+                .then(doctors => {
+                    const doctorList = document.querySelector('.doctor-list');
+                    doctorList.innerHTML = ''; // Clear previous list
+                    doctors.forEach(doctor => {
+                        const listItem = document.createElement('li');
+                        listItem.className = 'doctor-item';
+                        listItem.innerHTML = `
+                            <span>${doctor.specialization}</span>
+                            <button class="btn btn-primary appointment-btn" onclick="bookAppointment(${doctor.doctor_id})">Book Appointment</button>
+                            <form action="/delete_user/${doctor.user_id}" method="post" style="display: inline;">
+                                <button type="submit" class="btn btn-danger">Delete</button>
+                            </form>
+                        `;
+                        doctorList.appendChild(listItem);
+                    });
+                });
+        }
+
+        // Function to book an appointment
+        function bookAppointment(doctor_id) {
+            var appointmentDate = prompt("Enter appointment date (YYYY-MM-DD HH:MM)");
+            if (appointmentDate) {
+                document.getElementById('doctor_id').value = doctor_id;
+                document.getElementById('appointment_date').value = appointmentDate;
+                document.getElementById('appointmentForm').submit();
+            }
+        }
+
+        // Function to fetch available medicines from the server and update the medicine list
+        function fetchAvailableMedicines() {
+            fetch('/get_available_medicines')
+                .then(response => response.json())
+                .then(medicines => {
+                    const medicineList = document.getElementById('medicine-list');
+                    medicineList.innerHTML = ''; // Clear previous list
+                    medicines.forEach(medicine => {
+                        const listItem = document.createElement('div');
+                        listItem.textContent = `Medicine: ${medicine.medicine_name}, Price: ${medicine.price}, Quantity: ${medicine.quantity}`;
+                        medicineList.appendChild(listItem);
+                    });
+                });
+        }
+
+        // Function to place an order
+        function placeOrder() {
+            const medicineName = document.getElementById('medicine').value;
+            const quantity = document.getElementById('quantity').value;
+
+            fetch('/place_order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ medicine_name: medicineName, quantity: quantity })
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('Order placed successfully!');
+                } else {
+                    alert('Failed to place order');
+                }
+            })
+            .catch(error => {
+                console.error('Error placing order:', error);
+                alert('Error placing order');
+            });
+        }
+    </script>
+</body>
+</html>

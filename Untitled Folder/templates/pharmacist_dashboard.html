@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pharmacist Dashboard</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Pharmacist Dashboard</h2>
+        <div id="orders-list"></div>
+    </div>
+
+    <script>
+        // Fetch and display orders for pharmacist
+        function fetchOrders() {
+            fetch('/get_orders')
+                .then(response => response.json())
+                .then(orders => {
+                    const ordersList = document.getElementById('orders-list');
+                    ordersList.innerHTML = ''; // Clear previous list
+                    orders.forEach(order => {
+                        const orderItem = document.createElement('div');
+                        orderItem.className = 'card mt-3';
+                        orderItem.innerHTML = `
+                            <div class="card-body">
+                                <h5 class="card-title">Order ID: ${order.order_id}</h5>
+                                <p class="card-text">Medicine Name: ${order.medicine_name}</p>
+                                <p class="card-text">Quantity: ${order.quantity}</p>
+                                <p class="card-text">Status: ${order.status}</p>
+                                <button class="btn btn-primary" onclick="shipOrder(${order.order_id})">Ship</button>
+                            </div>
+                        `;
+                        ordersList.appendChild(orderItem);
+                    });
+                });
+        }
+
+        // Function to ship an order
+        function shipOrder(orderId) {
+            fetch(`/update_order_status/${orderId}`, { method: 'POST' })
+                .then(response => {
+                    if (response.ok) {
+                        // Update order status and re-fetch orders
+                        fetchOrders();
+                    } else {
+                        console.error('Failed to ship order:', response.statusText);
+                    }
+                })
+                .catch(error => console.error('Error shipping order:', error));
+        }
+
+        // Fetch orders when the page loads
+        window.onload = fetchOrders;
+    </script>
+</body>
+</html>
