@@ -17,3 +17,6 @@ through the platform.
 responsive user experience across devices.
  Accessibility: Designed with accessibility in mind, making it easy for users with different 
 needs to navigate the platform
+
+THE DATABASE IS GIVEN IN SQL FILE 
+U CAN FREE TO USE OTHER DATABASES EXCEPT FOR SOOME CHANGES IN CODE .. IN "app.py "
